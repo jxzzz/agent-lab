@@ -1,0 +1,26 @@
+# secrets
+.env
+
+# local Claude Code state
+.claude/
+
+# node
+node_modules/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+
+# build artifacts (regenerate with the project's build scripts)
+project-2-knowledge-agent/chunks.jsonl
+project-2-knowledge-agent/vector_index.json
+
+# generated data & run outputs
+*.db
+*.log
+project-3-report-agent/runs/
+project-3-report-agent/output/
+project-3-report-agent/evaluations/
