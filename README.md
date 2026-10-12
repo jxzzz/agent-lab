@@ -1,4 +1,6 @@
-# Agent Learning Trail · Agent 开发学习路径
+[![English](https://img.shields.io/badge/🌐-English-blue)](./README.en.md) **← 当前中文 · [切换 English](./README.en.md)**
+
+# Agent 学习路径
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
@@ -7,74 +9,7 @@
 ![MCP](https://img.shields.io/badge/MCP-server%20%2B%20client-000000)
 ![DeepSeek](https://img.shields.io/badge/DeepSeek-API-4D6BFB)
 
-From the first raw LLM API call to a multi-agent system — one workspace, five camps, in real learning order.
-
 从第一次裸调 LLM API,到一条完整的多 Agent 流水线 —— 一个工作区,五座营地,按真实学习顺序排列。
-
----
-
-## 🇬🇧 English
-
-### The whole secret, in 10 lines
-
-Every framework is a wrapper around this loop. Write it by hand once, and everything after becomes transparent:
-
-```python
-while True:
-    resp = llm(messages, tools=tools)
-    if not resp.tool_calls:
-        break                      # model is done talking
-    for call in resp.tool_calls:
-        result = run(call)         # your code does the work
-        messages.append(result)    # feed it back, ask again
-```
-
-### The trail
-
-| # | Camp | Directory | What you learn |
-|---|------|-----------|----------------|
-| 01 | Know the model | `fundamentals/` | Raw LLM API, multi-turn context, intent parsing, function calling, first StateGraph |
-| 02 | Tool calling across stacks | `ai-sdk-lab/` | Vercel AI SDK + zod tools in TypeScript, multi-tool orchestration, voice input (Deepgram STT) |
-| 03 | A real single agent | `project-1-customer-agent/` | SQLite tool layer, LangGraph tool loop, session memory, human-in-the-loop confirmation, refusing to hallucinate |
-| 04 | External knowledge · RAG | `project-2-knowledge-agent/` | Chunking → embedding → vector search, answers with sources, refusal when unsure, FastAPI, MCP server & client |
-| 05 | Multi-agent collaboration | `project-3-report-agent/` | planner → data → writer → reviewer pipeline, read-only SQL guards, SSE streaming, eval regression suite |
-
-Each camp solves what the previous one cannot:
-
-```
-raw API → tool calling → orchestration → one grounded agent → external knowledge → many agents
-```
-
-- **Camp 01–02** — the model can only talk; function calling gives it hands, in both Python and TypeScript.
-- **Camp 03** — a customer-service agent over a real database: dangerous actions need human confirmation (y/n), missing orders get "not found", never invented.
-- **Camp 04** — five policy documents become a Q&A knowledge base; every answer carries its source, and MCP exposes it as tools.
-- **Camp 05** — a natural-language question becomes a Markdown report with data citations; SQL is read-only, every claim must reference a real query, and the reviewer can force a rewrite (max 2 rounds).
-
-### Quick start
-
-```bash
-# Python projects — each has its own .venv, tests from inside the project
-cd project-3-report-agent
-.venv/bin/python -m pytest tests -q
-
-# TypeScript
-cd ai-sdk-lab && pnpm install && pnpm dev        # task-1 / dev:umbrella / dev:voice
-
-# Run the agents — see each project's README.md
-```
-
-### Swamps — don't step in
-
-| Swamp | Why it eats you |
-|---|---|
-| Starting from a framework tutorial | Framework abstractions hide the loop you should learn first |
-| Believing in multi-agent | If one agent with good tools can do it, five agents will just misquote each other |
-| Tuning prompts without evals | Without test cases you're rolling dice, not iterating |
-| Chasing a universal brain | Narrow-and-deep first; generality is walked out one narrow step at a time |
-
----
-
-## 🇨🇳 中文
 
 ### 全部秘密,10 行讲完
 
@@ -133,14 +68,11 @@ cd ai-sdk-lab && pnpm install && pnpm dev        # task-1 / dev:umbrella / dev:v
 | 无 eval 调提示词 | 没有测试用例,你不是在迭代,是在掷骰子 |
 | 追求通用大脑 | 先窄而深,通用是无数个窄步走出来的 |
 
----
+### 🗺️ 交互式学习地图
 
-## 🗺️ Interactive map · 交互式学习地图
+[agent-learning-trail.html](./agent-learning-trail.html) —— 地铁图风格的交互式路线:点节点看技能清单,勾选进度存在浏览器本地。
 
-[agent-learning-trail.html](./agent-learning-trail.html) — 地铁图风格的交互式路线:点节点看技能清单,勾选进度存在浏览器本地。
-Open it locally in a browser, or via GitHub Pages once enabled.
-
-## 🧭 What's next · 下一步
+### 🧭 下一步
 
 Structured output(严格 schema 输出)· 长期记忆 · LangSmith tracing · 检索 rerank · 部署生产化
 
