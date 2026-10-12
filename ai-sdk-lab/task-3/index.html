@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Assistant</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header with lang toggle */
+    .header { display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-size: 1.5rem; color: #94a3b8; }
+    .lang-toggle {
+      display: flex;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .lang-btn {
+      padding: 4px 12px;
+      font-size: 0.85rem;
+      border: none;
+      background: #1e293b;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .lang-btn.active { background: #1d4ed8; color: white; }
+    .lang-btn:not(.active):hover { color: #94a3b8; }
+
+    .mic-area { display: flex; justify-content: center; }
+    .mic-btn {
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      border: 3px solid #334155;
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mic-btn:hover { border-color: #475569; background: #334155; }
+    .mic-btn.recording {
+      border-color: #ef4444;
+      background: #7f1d1d;
+      color: #fca5a5;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50%      { box-shadow: 0 0 0 20px rgba(239,68,68,0); }
+    }
+    .hint { text-align: center; font-size: 0.85rem; color: #64748b; }
+
+    .chat { display: flex; flex-direction: column; gap: 12px; }
+    .bubble { padding: 12px 16px; border-radius: 12px; max-width: 85%; line-height: 1.5; }
+    .bubble.user { background: #1d4ed8; align-self: flex-end; }
+    .bubble.assistant { background: #1e293b; align-self: flex-start; border: 1px solid #334155; }
+    .bubble .label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; }
+    .bubble .text { font-size: 1rem; }
+
+    .loading { text-align: center; color: #64748b; font-size: 0.85rem; }
+
+    .text-input-area { display: flex; gap: 8px; }
+    .text-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .text-input:focus { border-color: #475569; }
+    .send-btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: #1d4ed8;
+      color: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .send-btn:hover { background: #2563eb; }
+    .send-btn:disabled { opacity: 0.5; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1 id="title">Voice Assistant</h1>
+    <div class="lang-toggle">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="zh">中文</button>
+    </div>
+  </div>
+
+  <div class="mic-area">
+    <button class="mic-btn" id="micBtn" title="Click to start recording">🎙️</button>
+  </div>
+  <p class="hint" id="hint">Tap to speak, tap again to send</p>
+
+  <div class="text-input-area">
+    <input class="text-input" id="textInput" type="text" placeholder="Type a message, press Enter..." />
+    <button class="send-btn" id="sendBtn">Send</button>
+  </div>
+
+  <div class="chat" id="chat"></div>
+  <div class="loading" id="loading"></div>
+</div>
+
+<script>
+  // ===== State =====
+  let lang = "en";
+  let mediaRecorder, audioChunks;
+  let recording = false;
+  let audioQueue = Promise.resolve();
+
+  // ===== i18n =====
+  const i18n = {
+    en: {
+      title: "Voice Assistant",
+      hint: "Tap to speak, tap again to send",
+      placeholder: "Type a message, press Enter...",
+      send: "Send",
+      recording: "Recording... tap to stop",
+      transcribing: "Transcribing...",
+      listening: "Listening...",
+      thinking: "Thinking...",
+      nothingHeard: "Nothing heard — try again",
+      micDenied: "Microphone access denied: ",
+      you: "You",
+      assistant: "Assistant",
+    },
+    zh: {
+      title: "语音助手",
+      hint: "点击开始说话，再按一次发送",
+      placeholder: "输入文字，回车发送...",
+      send: "发送",
+      recording: "正在录音... 点击停止",
+      transcribing: "正在识别...",
+      listening: "正在听...",
+      thinking: "思考中...",
+      nothingHeard: "未识别到语音，请重试",
+      micDenied: "麦克风被拒绝: ",
+      you: "你",
+      assistant: "助手",
+    },
+  };
+  function t(key) { return (i18n[lang] && i18n[lang][key]) || key; }
+
+  // ===== DOM refs =====
+  const micBtn = document.getElementById("micBtn");
+  const hint = document.getElementById("hint");
+  const chat = document.getElementById("chat");
+  const loading = document.getElementById("loading");
+  const textInput = document.getElementById("textInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const titleEl = document.getElementById("title");
+  const langBtns = document.querySelectorAll(".lang-btn");
+
+  // ===== Language toggle =====
+  langBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      langBtns.forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      lang = btn.getAttribute("data-lang") || "en";
+      applyLang();
+    });
+  });
+
+  function applyLang() {
+    titleEl.textContent = t("title");
+    hint.textContent = t("hint");
+    textInput.placeholder = t("placeholder");
+    sendBtn.textContent = t("send");
+    document.querySelectorAll(".bubble.user .label").forEach(function (l) { l.textContent = t("you"); });
+    document.querySelectorAll(".bubble.assistant .label").forEach(function (l) { l.textContent = t("assistant"); });
+  }
+
+  // ===== TTS (Aura primary, browser fallback) =====
+  async function playAuraTTS(text) {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, lang }),
+    });
+    if (!res.ok) throw new Error("Aura unavailable");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    return new Promise(function (resolve) {
+      const audio = new Audio(url);
+      audio.onended = function () { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = function () { URL.revokeObjectURL(url); resolve(); };
+      audio.play();
+    });
+  }
+
+  function playBrowserTTS(text) {
+    return new Promise(function (resolve) {
+      if (!window.speechSynthesis) return resolve();
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang === "zh" ? "zh-CN" : "en-US";
+      u.rate = 1.0;
+      u.onend = function () { resolve(); };
+      u.onerror = function () { resolve(); };
+      speechSynthesis.speak(u);
+    });
+  }
+
+  function speak(text) {
+    audioQueue = audioQueue
+      .then(function () { return playAuraTTS(text); })
+      .catch(function () { return playBrowserTTS(text); })
+      .catch(function () {});
+  }
+
+  // ===== Mic =====
+  micBtn.addEventListener("click", async () => {
+    if (recording) return stopRecording();
+    await startRecording();
+  });
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      audioChunks = [];
+      mediaRecorder.ondataavailable = function (e) { audioChunks.push(e.data); };
+      mediaRecorder.onstop = handleAudio;
+      mediaRecorder.start();
+      recording = true;
+      micBtn.classList.add("recording");
+      micBtn.textContent = "⏹️";
+      hint.textContent = t("recording");
+    } catch (err) {
+      hint.textContent = t("micDenied") + (err && err.message || "");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
+    recording = false;
+    micBtn.classList.remove("recording");
+    micBtn.textContent = "⏳";
+    hint.textContent = t("transcribing");
+    micBtn.disabled = true;
+  }
+
+  async function handleAudio() {
+    const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+    loading.textContent = t("listening");
+    try {
+      const sttRes = await fetch("/api/stt?lang=" + lang, { method: "POST", body: audioBlob });
+      const data = await sttRes.json();
+      if (data.error) throw new Error(data.error);
+      if (!data.text || !data.text.trim()) {
+        loading.textContent = "";
+        hint.textContent = t("nothingHeard");
+        resetMic();
+        return;
+      }
+      appendBubble("user", data.text);
+      await chatWithLLM(data.text);
+    } catch (err) {
+      loading.textContent = (err && err.message) || "";
+    } finally {
+      loading.textContent = "";
+      resetMic();
+    }
+  }
+
+  // ===== Text input =====
+  async function sendText(text) {
+    if (!text.trim()) return;
+    textInput.disabled = true;
+    sendBtn.disabled = true;
+    appendBubble("user", text);
+    textInput.value = "";
+    await chatWithLLM(text);
+    textInput.disabled = false;
+    sendBtn.disabled = false;
+    textInput.focus();
+  }
+
+  sendBtn.addEventListener("click", function () { sendText(textInput.value); });
+  textInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") sendText(textInput.value);
+  });
+
+  // ===== LLM =====
+  async function chatWithLLM(text) {
+    loading.textContent = t("thinking");
+    try {
+      const chatRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, lang }),
+      });
+      const data = await chatRes.json();
+      if (data.error) throw new Error(data.error);
+      appendBubble("assistant", data.text);
+      speak(data.text);
+    } catch (err) {
+      loading.textContent = (err && err.message) || "";
+    } finally {
+      loading.textContent = "";
+    }
+  }
+
+  // ===== Bubbles =====
+  function appendBubble(role, text) {
+    const div = document.createElement("div");
+    div.className = "bubble " + role;
+    div.innerHTML = '<div class="label">' + (role === "user" ? t("you") : t("assistant")) + '</div><div class="text">' + escapeHtml(text) + '</div>';
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function resetMic() {
+    micBtn.disabled = false;
+    micBtn.textContent = "🎙️";
+    hint.textContent = t("hint");
+  }
+</script>
+</body>
+</html>
